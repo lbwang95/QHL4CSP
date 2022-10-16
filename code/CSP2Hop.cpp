@@ -82,19 +82,18 @@ void concat(vector<DD> &P1,vector<DD> &P2, vector<DD> &res){
             res.push_back(DD(P1[i].first + P2[j].first, P1[i].second + P2[j].second));
         }
 }
-
+long long csp2hoptc;
 void concatQuery(vector<DD> &P1,vector<DD> &P2, double C){
     for (int i = 0; i < P1.size();i++)
         for (int j = 0; j < P2.size();j++){
+            csp2hoptc++;
             //printf("(%f,%f-%f,%f)", P1[i].first, P1[i].second, P2[j].first, P2[j].second);
             if (P1[i].first + P2[j].first <= C){
                 optw=min(optw, P1[i].second + P2[j].second);
             }
         }
 }
-
-
-
+int csp2hopsize;
 void CSP2Hop(int s, int t, double C){
     optw = DBL_MAX;
     if (s == t)
@@ -103,12 +102,12 @@ void CSP2Hop(int s, int t, double C){
     t--;
     vector<int> ancs,anct;
     int u1 = s, l = -1;
-    while(u1!=rootpa){
+    while(u1!=MAX_V){
         ancs.push_back(u1);
         u1 = T[u1].parent;
     }
     u1 = t;
-    while(u1!=rootpa){
+    while(u1!=MAX_V){
         anct.push_back(u1);
         u1 = T[u1].parent;
     }
@@ -146,14 +145,12 @@ void CSP2Hop(int s, int t, double C){
     }
     else{
         //printf("lca%d\n", l + 1);
-        nhoplink += ancarray[l].size();
+        csp2hopsize += ancarray[l].size();
         for (int i = 0; i < ancarray[l].size();i++){
             ind = ancarray[l][i];
-            npc += L[s][ind].second.size() * L[t][ind].second.size();
+            //printf("|%d %d %d|\n", ind, L[s][ind].second.size(), L[t][ind].second.size());
             concatQuery(L[s][ind].second, L[t][ind].second, C);
         }
-        ind = k;
-        concatQuery(L[s][ind].second, L[t][ind].second, C);
     }
     //printf("%f\n", optw);
 }
@@ -195,7 +192,7 @@ int main(int argc , char * argv[]){
     t2=std::chrono::high_resolution_clock::now();
 	time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2-t1);
 	runT= time_span.count();
-	cout << "Query Time " << runT << endl;
-    cout << "# of path concatenations " << npc << endl;
-    cout << "# of hoplinks " << nhoplink << endl;
+	cout<<"CSP-2Hop Query Time "<<runT<<endl;
+    cout << "# of CSP-2Hop Hoplinks " << csp2hopsize <<endl;
+    cout << "# of CSP-2Hop Path Concatenations " << csp2hoptc <<endl;
 }

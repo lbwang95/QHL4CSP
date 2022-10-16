@@ -2,6 +2,7 @@
 #include<unordered_map>
 using namespace std;
 typedef pair<double, double> DD;
+typedef pair<double, int> DI;
 typedef pair<int, vector<DD>> IV;
 typedef pair<int, vector<int>> IVI;
 typedef pair<int, int> II;
@@ -23,6 +24,30 @@ vector<IV> L[MAX_V];
 unordered_map<int, int> TX[MAX_V];
 vector<int> ancarray[MAX_V];
 int root = -1;
+
+void Sky(vector<DD> &P1,vector<DD> &P2, vector<DD> &res){
+    //return the res contains the skyline paths of joining P1 and P2
+    if(P1.size()==0)
+        for (int i = 0; i < P2.size();i++)
+            res.push_back(P2[i]);
+    if(P2.size()==0)
+        for (int i = 0; i < P1.size();i++)
+            res.push_back(P1[i]);
+    for (int i = 0; i < P1.size();i++)
+        for (int j = 0; j < P2.size();j++){
+            res.push_back(DD(P1[i].first + P2[j].first, P1[i].second + P2[j].second));
+        }
+    sort(res.begin(), res.end());
+    double prev = DBL_MAX;
+    vector<DD> tmp;
+    for (int i = 0; i < res.size();i++){
+        if(res[i].second<prev){
+            tmp.push_back(res[i]);
+            prev = res[i].second;
+        }
+    }
+    res = tmp;
+}
 
 void load(string s){
     ifstream inf;
@@ -88,17 +113,17 @@ bool cmpp(const II &a,const II &b){
     return L[curcs][a.first].second[0].first < L[curcs][b.first].second[0].first;
 }
 
-void Cub_h(vector<DD> &P_, vector<DD> &P__, double &Ch){
-    /*
-    for (int k = 0; k < P_.size();k++)
-        printf("*%f %f*", P_[k].first, P_[k].second);
-    for (int k = 0; k < P__.size();k++)
-        printf("#%f %f#", P__[k].first, P__[k].second);*/
+void Cub_h(int v,int u,int h,vector<DD> &P_, vector<DD> &P__, double &Ch){
+    //setting Cub_h for fixed u (Alg.5)
     int j = 0;
     for (int i = 0; i < P_.size();i++){
         while(j<P__.size()){
             if(P_[i].first==P__[j].first&&P_[i].second==P_[j].second)
                 break;
+            else if(P_[i].first<P__[j].first){
+                Ch = max(Ch, P_[i].first);
+                return;
+            }
             else
                 j++;
         }
@@ -110,46 +135,101 @@ void Cub_h(vector<DD> &P_, vector<DD> &P__, double &Ch){
     Ch = DBL_MAX;
     return;
 }
-unordered_map<int,vector<double>> Cub[MAX_V];//following ancarray positions -1
-void pruningConditions(int cs, int v, bool build, vector<II> &H, double C){
+unordered_map<int, double> relationC[MAX_V];//the speedup technique
+unordered_map<int,vector<DI>> Cub[MAX_V];//following ancarray positions -1
+int totpcs = 0, totvisitpcs = 0;
+long long qhlindexsize;
+void pruningConditions(int cs, int v){
+    //Alg. 6
     //printf("cs%d v%d\n", cs + 1, v + 1);
-    if (build){
-        if(Cub[cs].count(v) == 0){
-            vector<II> _anc;
-            curcs = cs;
-            for (int i = 0; i < ancarray[cs].size() - 1; i++){//minus cs
-                Cub[cs][v].push_back(0);
-                _anc.push_back(II(ancarray[cs][i], i));
-            }
-            sort(_anc.begin(), _anc.end(), cmpp);
-            int lena = _anc.size();
-            for (int i = 0; i < lena; i++){
-                for (int j = i + 1; j < lena; j++){
-                    vector<DD> res;
-                    int levu = _anc[i].first, levh = _anc[j].first;
-                    int u = L[cs][levu].first, h = L[cs][levh].first;
-                    concat(L[v][levu].second, (levu>levh)?L[u][levh].second:L[h][levu].second, res);
-                    sort(res.begin(), res.end());
-                    Cub_h(L[v][levh].second, res, Cub[cs][v][_anc[j].second]);
-                    //printf("|%d %d %d %d %f|", levu, levh, u + 1, h + 1, Cub[cs][v][_anc[j].second]);
-                }
-            }
+    if(Cub[v].count(cs)==1)
+        return;
+    totpcs += 1;
+    vector<II> _anc;
+    curcs = cs;
+    for (int i = 0; i < ancarray[cs].size() - 1; i++){//minus cs
+        Cub[v][cs].push_back(DI(0, ancarray[cs][i]));
+        _anc.push_back(II(ancarray[cs][i], i));
+    }
+    sort(_anc.begin(), _anc.end(), cmpp);
+    int lena = _anc.size();
+    default_random_engine gen(time(NULL));
+    for (int j = 1; j < lena; j++){
+        uniform_int_distribution<int> iu(0, j-1);
+        int i = iu(gen);
+        vector<DD> res;
+        int levu = _anc[i].first, levh = _anc[j].first;
+        int u = L[cs][levu].first, h = L[cs][levh].first;
+        if (relationC[v].count(levu * treeheight + levh) != 0)
+        {
+            Cub[v][cs][_anc[j].second].first = max(Cub[v][cs][_anc[j].second].first, relationC[v][levu * treeheight + levh]);
+        }
+        else{
+            Sky(L[v][levu].second, (levu>levh)?L[u][levh].second:L[h][levu].second, res);
+            Cub_h(v,u,h,L[v][levh].second, res, Cub[v][cs][_anc[j].second].first);
+            relationC[v][levu * treeheight + levh] = Cub[v][cs][_anc[j].second].first;
+            //printf("|%d %d %d %d %f|", levu, levh, u + 1, h + 1, Cub[v][cs][_anc[j].second]);
         }
     }
-    if(Cub[cs].count(v) != 0){
-        for (int i = 0; i < Cub[cs][v].size();i++){
-            if(C>=Cub[cs][v][i])
-                H.push_back(II(ancarray[cs][i], i));
-        }
-        //for (int i = 0; i < H.size();i++)
-        //    printf("|%d %d|\n", H[i].first, H[i].second);
-    }
+    qhlindexsize += Cub[v][cs].size();
 }
 
+void QHLindex(string prefix){//building all pruning conditions Sec. 4.2
+    FILE *fpq = fopen((prefix + string("random")).c_str(), "r");
+    int s = -1, t = 0;
+    double C;
+    int iter = 0;
+    default_random_engine gen(time(NULL));
+    uniform_int_distribution<int> st(0, N - 1);
+    while (~fscanf(fpq, "%d%d%lf", &s, &t, &C)){
+        iter += 1;
+        if(iter%10000==0)
+            printf("%d\n", iter);
+        vector<int> ancs,anct;
+        int u1 = s, l = -1;
+        while(u1!=MAX_V){
+            ancs.push_back(u1);
+            u1 = T[u1].parent;
+        }
+        u1 = t;
+        while(u1!=MAX_V){
+            anct.push_back(u1);
+            u1 = T[u1].parent;
+        }
+        int i = ancs.size() - 1, j = anct.size() - 1, k = -1;
+        while (i != -1 && j != -1){
+            if (ancs[i] == anct[j]){
+                i--,j--,k++;
+            }
+            else
+                break;
+        }
+        if(i==-1)
+            l = ancs[0];
+        else if(j==-1)
+            l = anct[0];
+        else
+            l = ancs[i + 1];
+        int ind;
+        if (l == s||l == t){
+            continue;
+        }
+        else{
+            int cs = ancs[i], ct = anct[j];
+            pruningConditions(cs, s);
+            pruningConditions(cs, t);
+            pruningConditions(ct, s);
+            pruningConditions(ct, t);
+        }
+    }
+    printf("Total number of pruning conditions %d\n", totpcs);
+}
+long long qhltc;
 void pathConcatenationC(vector<DD> &Psh,vector<DD> &Pht, double &C){
     int i = 0, j = Pht.size() - 1;
     while (i != Psh.size() && j != -1){
         if (Psh[i].first + Pht[j].first <= C){
+            qhltc++;
             if (Psh[i].second + Pht[j].second < optw){
                 optw = Psh[i].second + Pht[j].second;
             }
@@ -159,21 +239,50 @@ void pathConcatenationC(vector<DD> &Psh,vector<DD> &Pht, double &C){
             j--;
     }
 }
-
+int hitpc;
+void usePC(bool initflag, int c, int v, int s, int t, double C, vector<int> &H, int &retc, int &mtc){
+    if(Cub[v].count(c) != 0){
+        hitpc++;
+        double tc = 0;
+        vector<int> H1;
+        for (int i = 0; i < Cub[v][c].size();i++){
+            if(C>=Cub[v][c][i].first){
+                int levh = ancarray[c][i];//forbid sort since ancarray follows Cub
+                tc+=L[s][levh].second.size() + L[t][levh].second.size();
+                H1.push_back(ancarray[c][i]);
+            }
+        }
+        if(tc<mtc){
+            H = H1;
+            mtc = tc;
+            retc = c;
+        }
+    }
+    else if(initflag){
+        mtc = 0;
+        retc = c;
+        for (int i = 0; i < ancarray[c].size() - 1; i++){//minus cs
+            H.push_back(ancarray[c][i]);
+            int levh = ancarray[c][i];
+            mtc+=L[s][levh].second.size() + L[t][levh].second.size();
+        }
+    }
+    totvisitpcs++;
+}
+int qhlhopsize;
 void QHL(int s, int t, double C){
     optw = DBL_MAX;
     if (s == t)
         return;
-    s--;
-    t--;
+    s--,t--;
     vector<int> ancs,anct;
     int u1 = s, l = -1;
-    while(u1!=rootpa){
+    while(u1!=MAX_V){
         ancs.push_back(u1);
         u1 = T[u1].parent;
     }
     u1 = t;
-    while(u1!=rootpa){
+    while(u1!=MAX_V){
         anct.push_back(u1);
         u1 = T[u1].parent;
     }
@@ -183,9 +292,7 @@ void QHL(int s, int t, double C){
         if (ancs[i] == anct[j]){
             inds[ancs[i]] = i;
             indt[anct[j]] = j;
-            i--;
-            j--;
-            k++;
+            i--, j--, k++;
         }
         else
             break;
@@ -211,49 +318,17 @@ void QHL(int s, int t, double C){
     }
     else{
         int cs = ancs[i], ct = anct[j];
-        //printf("cs%d ct%d\n", cs + 1, ct + 1);
-        vector<II> H[4];
-        pruningConditions(cs, s, 1, H[0], C);
-        pruningConditions(cs, t, 1, H[1], C);
-        pruningConditions(ct, s, 1, H[2], C);
-        pruningConditions(ct, t, 1, H[3], C);
-        //cost estimation
-        int mtc = INT_MAX, indH;
-        for (int i = 0; i < 4;i++){
-            int timecost = 0;
-            if(i<2){
-                for (int j = 0; j < H[i].size(); j++){
-                    int levh = ancarray[cs][H[i][j].second];
-                    timecost += L[s][levh].second.size() + L[t][levh].second.size();
-                }
-            }
-            else{
-                for (int j = 0; j < H[i].size(); j++){
-                    int levh = ancarray[ct][H[i][j].second];
-                    timecost += L[s][levh].second.size() + L[t][levh].second.size();
-                }
-            }
-            if(timecost<mtc){
-                mtc = timecost;
-                indH = i;
-            }
-        }
-        npc += mtc;
-        nhoplink += H[indH].size();
+        int c, mintc = INT_MAX;
+        vector<int> H;
+        usePC(1, cs, s, s, t, C, H, c, mintc);
+        usePC(0, cs, t, s, t, C, H, c, mintc);
+        usePC(0, ct, s, s, t, C, H, c, mintc);
+        usePC(0, ct, t, s, t, C, H, c, mintc);
+        qhlhopsize += H.size();
         //printf("%d %d", mtc, indH);
-        if(indH<2){
-            for (int i = 0; i < H[indH].size(); i++)
-            {
-                ind = ancarray[cs][H[indH][i].second];
-                pathConcatenationC(L[s][ind].second, L[t][ind].second, C);
-            }
-        }
-        else{
-            for (int i = 0; i < H[indH].size(); i++)
-            {
-                ind = ancarray[ct][H[indH][i].second];
-                pathConcatenationC(L[s][ind].second, L[t][ind].second, C);
-            }
+        for (int i = 0; i < H.size(); i++)
+        {
+            pathConcatenationC(L[s][H[i]].second, L[t][H[i]].second, C);
         }
     }
     //printf("%f\n", optw);
@@ -297,7 +372,8 @@ int main(int argc , char * argv[]){
     t2=std::chrono::high_resolution_clock::now();
 	time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2-t1);
 	runT= time_span.count();
-    cout << "Query Time " << runT << endl;
-    cout << "# of path concatenations " << npc << endl;
-    cout << "# of hoplinks " << nhoplink << endl;
+    cout<<"QHL Query Time "<<runT<<endl;
+    cout << "# of QHL Hoplinks " << qhlhopsize <<endl;
+    cout << "# of QHL Path Concatenations " << qhltc <<endl;
+    cout << "# hit Pruning Conditions " << hitpc << "in " << totvisitpcs <<endl;
 }

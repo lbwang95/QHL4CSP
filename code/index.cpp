@@ -8,14 +8,14 @@ typedef pair<int, vector<int>> IVI;
 typedef pair<int, int> II;
 typedef pair<int, double> ID;
 const int MAX_V = 435676;
-int N, M;
-long long csp2hoptc, qhltc;
-double optw = DBL_MAX;
+int N, M;//# of vertices and edges
+long long csp2hoptc, qhltc;//# of path concatenations
+double optw = DBL_MAX;//optimal answer
 int treeheight = 0, treewidth = 0, treeavgheight = 0;
 
 typedef struct node{
-    int level;
-    int ran;
+    int level;//not used
+    int ran;//rank in the order
     int parent;
     vector<int> children;
     vector<IV> X;
@@ -24,8 +24,8 @@ node T[MAX_V];
 vector<IV> L[MAX_V];
 vector<int> anc[MAX_V];
 int root = -1;
-unordered_map<int,vector<DD> > adj[MAX_V];
-unordered_map<int,int> adjo[MAX_V];
+unordered_map<int,vector<DD> > adj[MAX_V];//contains only edges to higher rank
+unordered_map<int,int> adjo[MAX_V];//contains all the edges
 vector<int> order;
 bool flag[MAX_V];
 bool cmp(const IV &a, const IV &b){
@@ -35,10 +35,12 @@ bool cmp(const IV &a, const IV &b){
 vector<int> ordergen;
 int del[MAX_V];//deleted neighbors
 double update(int v){
+//priorities for contracting vertices
     return 1000 * adjo[v].size() + del[v];
 }
 typedef pair<II, int> III;
 void genorder(string filename){
+//first generating an order of contracting vertices
     priority_queue<II, vector<II>, greater<II> > degque;
     for (int i = 0; i < N; i++)
         degque.push(II(update(i), i));
@@ -50,14 +52,11 @@ void genorder(string filename){
         if(flag[v])
             continue;
         double prio = update(v);
-        if (prio > degque.top().first){
+        if (prio > degque.top().first){//lazy update
             degque.push(II(prio,v));
             continue;
         }
         iter += 1;
-        //if(iter%100000==0){
-        //    printf("----------%d %d--------\n", iter, totnewedge);
-        //}
         flag[v] = 1;
         ordergen.push_back(v);
         T[v].ran = iter;
@@ -77,7 +76,6 @@ void genorder(string filename){
                     totnewedge += 1;
                 }
             }
-            //adjo[u].erase(v);
             del[u]++;
         }
     }
@@ -89,6 +87,7 @@ void genorder(string filename){
 }
 
 void Sky(vector<DD> &P1,vector<DD> &P2, vector<DD> &res){
+    //return the res contains the skyline paths of joining P1 and P2
     if(P1.size()==0)
         for (int i = 0; i < P2.size();i++)
             res.push_back(P2[i]);
@@ -109,25 +108,19 @@ void Sky(vector<DD> &P1,vector<DD> &P2, vector<DD> &res){
         }
     }
     res = tmp;
-    //for (int i = 0; i < res.size();i++)
-    //    printf("|%f %f|\n", res[i].first, res[i].second);
 }
 
 int descnt[MAX_V];
 void treedec(){
+    //building the tree decomposition first build nodes and then link them 
     for (int i = 0; i < N; i++){
         int v = ordergen[i];
-        //printf("|%d %d %d|\n", ii.first, adj[v].size(),v+1);
         if(i%100000==0)
             printf("%d\n", i);
         unordered_map<int, vector<DD>>::iterator it;  
         for (it = adj[v].begin(); it !=adj[v].end(); it++)
             T[v].X.push_back(IV(it->first, it->second));
         int lenX = T[v].X.size();
-        //for (int j = 0; j < lenX;j++){
-        //    printf("%d ", T[v].X[j].first+1);
-        //}
-        //cout << endl;
         for (int j = 0; j < lenX; j++){
             IV nu = T[v].X[j];
             int u = nu.first;
@@ -156,6 +149,7 @@ void treedec(){
             }
         }
     }
+    //from bottom to top
     for (int i = 0; i < ordergen.size();i++){
         int v = ordergen[i];
         sort(T[v].X.begin(), T[v].X.end(), cmp);
@@ -179,9 +173,8 @@ void treedec(){
     cout << "Tree Width " << treewidth << endl;
 }
 
-queue<int> bfs;
-
 void concat(vector<DD> &P1,vector<DD> &P2, vector<DD> &res){
+    //join the two path sets in res
     if(P1.size()==0)
         for (int i = 0; i < P2.size();i++)
             res.push_back(P2[i]);
@@ -194,11 +187,11 @@ void concat(vector<DD> &P1,vector<DD> &P2, vector<DD> &res){
         }
 }
 
-vector<int> ancarray[MAX_V];
+vector<int> ancarray[MAX_V];//the indices (or depth) for X(v)'s nodes
 void generateLabel4v(int v){
+    //generate labels for each X(v) and its ancestors 
     vector<int> anc;
     int u1 = v;
-    //printf("v%d:", v+1);
     while(T[u1].parent!=MAX_V){
         anc.push_back(T[u1].parent);
         u1 = T[u1].parent;
@@ -208,7 +201,6 @@ void generateLabel4v(int v){
     treeheight = max(treeheight, lenanc + 1);
     for (int i = 0; i < lenanc;i++){
         int u = anc[anc.size() - 1 - i];
-        //printf("u%d ", u + 1);
         int lenx = T[v].X.size();
         vector<DD> res;
         for (int j = 0; j < lenx;j++){
@@ -216,7 +208,6 @@ void generateLabel4v(int v){
             if (w == v){
                 continue;
             }
-            //printf("w%d ", w + 1);
             if (T[w].ran <= T[u].ran){
                 Sky(T[v].X[j].second, L[w][i].second, res);
                 if(w==u)
@@ -226,15 +217,7 @@ void generateLabel4v(int v){
                 Sky(T[v].X[j].second, L[u][ancarray[v][j]].second, res);
             }
         }
-        //for (int j = 0; j < res.size();j++)
-        //    printf("res(%f,%f)", res[j].first, res[j].second);
-        //vector<DD> tmp;
-        //Sky(tmp, tmp, res, sres);
-        //cout << endl;
-        //for (int j = 0; j < sres.size();j++)
-        //    printf("sres%d(%f,%f)", u+1, sres[j].first, sres[j].second);
         L[v].push_back(IV(u, res));
-        //cout << endl;
     }
     vector<DD> tmpv;
     L[v].push_back(IV(v, tmpv));
@@ -243,7 +226,9 @@ void generateLabel4v(int v){
     //    printf("anc%d ", ancarray[v][j]);
     //cout << L[v].size() << endl;
 }
+queue<int> bfs;
 void labeling(){
+    //label in a top-down manner
     bfs.push(root);
     int iter = 0;
     while(!bfs.empty()){
@@ -314,11 +299,7 @@ bool cmpp(const II &a,const II &b){
 }
 
 void Cub_h(int v,int u,int h,vector<DD> &P_, vector<DD> &P__, double &Ch){
-    /*
-    for (int k = 0; k < P_.size();k++)
-        printf("*%f %f*", P_[k].first, P_[k].second);
-    for (int k = 0; k < P__.size();k++)
-        printf("#%f %f#", P__[k].first, P__[k].second);*/
+    //setting Cub_h for fixed u (Alg.5)
     int j = 0;
     for (int i = 0; i < P_.size();i++){
         while(j<P__.size()){
@@ -339,11 +320,12 @@ void Cub_h(int v,int u,int h,vector<DD> &P_, vector<DD> &P__, double &Ch){
     Ch = DBL_MAX;
     return;
 }
-unordered_map<int, double> relationC[MAX_V];
+unordered_map<int, double> relationC[MAX_V];//the speedup technique
 unordered_map<int,vector<DI>> Cub[MAX_V];//following ancarray positions -1
 int totpcs = 0, totvisitpcs = 0;
 long long qhlindexsize;
 void pruningConditions(int cs, int v){
+    //Alg. 6
     //printf("cs%d v%d\n", cs + 1, v + 1);
     if(Cub[v].count(cs)==1)
         return;
@@ -356,23 +338,6 @@ void pruningConditions(int cs, int v){
     }
     sort(_anc.begin(), _anc.end(), cmpp);
     int lena = _anc.size();
-    /*
-    for (int i = 0; i < lena; i++){
-        for (int j = i + 1; j < lena; j++){
-            vector<DD> res;
-            int levu = _anc[i].first, levh = _anc[j].first;
-            int u = L[cs][levu].first, h = L[cs][levh].first;
-            if(relationC[v].count(levu*treeheight+levh)!=0){
-                Cub[v][cs][_anc[j].second].first=max(Cub[v][cs][_anc[j].second].first,relationC[v][levu*treeheight+levh]);
-            }
-            else{
-                Sky(L[v][levu].second, (levu>levh)?L[u][levh].second:L[h][levu].second, res);
-                Cub_h(v,u,h,L[v][levh].second, res, Cub[v][cs][_anc[j].second].first);
-                relationC[v][levu * treeheight + levh] = Cub[v][cs][_anc[j].second].first;
-                //printf("|%d %d %d %d %f|", levu, levh, u + 1, h + 1, Cub[v][cs][_anc[j].second]);
-            }
-        }
-    }*/
     default_random_engine gen(time(NULL));
     for (int j = 1; j < lena; j++){
         uniform_int_distribution<int> iu(0, j-1);
@@ -394,7 +359,7 @@ void pruningConditions(int cs, int v){
     qhlindexsize += Cub[v][cs].size();
 }
 
-void QHLindex(string prefix){
+void QHLindex(string prefix){//building all pruning conditions Sec. 4.2
     FILE *fpq = fopen((prefix + string("random")).c_str(), "r");
     int s = -1, t = 0;
     double C;
@@ -446,6 +411,7 @@ void QHLindex(string prefix){
 }
 
 void pathConcatenationC(vector<DD> &Psh,vector<DD> &Pht, double &C){
+    //Alg. 4
     int i = 0, j = Pht.size() - 1;
     while (i != Psh.size() && j != -1){
         qhltc++;
@@ -644,16 +610,10 @@ int main(int argc , char * argv[]){
     if (argc > 2)
         sq = string(argv[2]);
     else
-        sq = string("pool1");
+        sq = string("q1");
     string prefix = string("../data/") + s + string("/");
     string s1 = prefix + string("USA-road-t.") + s + (".gr");
     string s2 = prefix + string("USA-road-d.") + s + (".gr");
-    //test or not
-    if(0){
-        sq = string("test");
-        s1 = string("../data/") + s + string("/t.") + s + (".gr");
-        s2 = string("../data/") + s + string("/d.") + s + (".gr");
-    }
     fp_networkw = fopen(s1.c_str(), "r");
     fp_networkc = fopen(s2.c_str(), "r");
     char ch, buffer[100];
@@ -744,7 +704,7 @@ int main(int argc , char * argv[]){
     
     t1=std::chrono::high_resolution_clock::now();
     //FILE *fp = fopen("index", "w");
-    //save(string("../data/")+s+string("/"));
+    //save(string("../data/")+s+string("/"));//test without save
     t2=std::chrono::high_resolution_clock::now();
     time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2-t1);
 	runT= time_span.count();
