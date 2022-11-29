@@ -1,0 +1,53 @@
+#!/bin/bash
+datasets=(ny fla nw ne)
+partitionsize=(723 2929 3306 4172)
+abbr=(NY FLA NW NE)
+datasets=()
+suffix=.graph
+#iter=("1 2 3 4 5 6 7 8")
+#for j in $iter
+#do
+#    for i in "${!datasets[@]}"
+#    do
+#        echo "${datasets[$i]}" >> preorcss_result
+#
+#        if [ -f "${datasets[$i]}$suffix" ];
+#        then 
+#            echo "Preprocessing ${datasets[$i]}"
+#            echo "${abbr[$i]}${partitionsize[$i]} "
+#            ./cola  -g ${datasets[$i]}$suffix -lb bg.${datasets[$i]}${suffix}.v3 node_clusters-${abbr[$i]}${partitionsize[$i]}.txt  cut_edges-${abbr[$i]}${partitionsize[$i]}.txt -o ${datasets[$i]}${suffix}.order.v5  -i ${datasets[$i]}${suffix}index.v5 -dq  rquery_${datasets[$i]}_s$j.txt 20 >> preorcss_result
+#        fi
+#    done
+#done
+
+for i in "${!datasets[@]}"
+do
+    echo "${datasets[$i]}" >>preorcss_result
+
+    if [ -f "${datasets[$i]}$suffix" ];
+    then 
+        echo "Preprocessing ${datasets[$i]}"
+        echo "${abbr[$i]}${partitionsize[$i]} "
+        ./cola  -g ${datasets[$i]}$suffix -gb node_clusters-${abbr[$i]}${partitionsize[$i]}.txt  cut_edges-${abbr[$i]}${partitionsize[$i]}.txt  >>preorcss_result
+    fi
+done
+
+datasets=(lks w europe usa)
+partitionsize=(7548 17137 47398 65536)
+abbr=(LKS W europe USA)
+datasets=(europe-new)
+partitionsize=(47398)
+abbr=(europe)
+suffix=.graph
+
+for i in "${!datasets[@]}"
+do
+    echo "${datasets[$i]}" >>preorcss_result
+
+    if [ -f "${datasets[$i]}$suffix" ];
+    then 
+        echo "Preprocessing ${datasets[$i]}"
+        echo "${abbr[$i]}${partitionsize[$i]} "
+        ./cola  -g ${datasets[$i]}$suffix -gb node_clusters-${abbr[$i]}${partitionsize[$i]}.txt  cut_edges-${abbr[$i]}${partitionsize[$i]}.txt  >>preorcss_result
+    fi
+done

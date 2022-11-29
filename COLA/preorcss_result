@@ -1,0 +1,28 @@
+approximation:1
+load graph, partition file, and cut edge file
+264346 nodes
+Avg cost:3126
+number of edges: 730100
+Load Graph Time: 0.47
+reading partition file
+finished reading partition file
+number of partitions:424
+overlay graph: N=4789,  M=588276
+generate overlay time:6.1875
+ordering vertices
+ordering vertices by coverage
+constructing trees...
+Sample size: 4706208
+Sampled 982 trees
+Calculating coverage
+Ordering vertices
+Ordering time: 32.4688
+preprocessing and generating indices
+Index Construction Time: 143.828
+Preprocessing time: 182.484
+linking children pointer
+half
+case 1 error:0 case_1_correct:7421695
+case 2 error:0 case_2_correct:7422799
+outputing index file
+adding labels
